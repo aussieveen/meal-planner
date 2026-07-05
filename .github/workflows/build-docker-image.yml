@@ -1,0 +1,35 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get current date
+        run: |
+            DATE_TIME="$(date +'%Y.%m.%d.%H.%M')"
+            echo "DATE_TIME=$DATE_TIME" >> $GITHUB_ENV
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker Image
+        run: docker build -t ghcr.io/${{ github.repository_owner }}/meal-planner:$DATE_TIME -f docker/php/Dockerfile.prod . --platform=linux/amd64
+
+      - name: Push Docker Image
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/meal-planner:$DATE_TIME
+          docker tag ghcr.io/${{ github.repository_owner }}/meal-planner:$DATE_TIME ghcr.io/${{ github.repository_owner }}/meal-planner:latest
+          docker push ghcr.io/${{ github.repository_owner }}/meal-planner:latest
