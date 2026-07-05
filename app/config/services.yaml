@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
+parameters:
+    env(MONGODB_URI): ''
+    env(MONGODB_DB): ''
+    env(COOKBOOK_API_URL): ''
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+
+    App\Client\CookbookClient:
+        arguments:
+            $baseUrl: '%env(COOKBOOK_API_URL)%'
+
+    App\Admin\WeekPlanAdmin:
+        arguments: [~, App\Document\WeekPlan, ~]
+        tags:
+            - { name: sonata.admin, model_class: App\Document\WeekPlan, manager_type: doctrine_mongodb, label: Week Plans }

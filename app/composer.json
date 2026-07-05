@@ -1,0 +1,125 @@
+{
+    "type": "project",
+    "license": "MIT",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "php": ">=8.5",
+        "ext-ctype": "*",
+        "ext-iconv": "*",
+        "doctrine/mongodb-odm-bundle": "^5.0",
+        "nelmio/api-doc-bundle": "^5.0",
+        "nelmio/cors-bundle": "^2.6",
+        "phpdocumentor/reflection-docblock": "^6.0",
+        "phpstan/phpdoc-parser": "^2.0",
+        "sonata-project/admin-bundle": "^4.42",
+        "sonata-project/doctrine-mongodb-admin-bundle": "5.x-dev",
+        "symfony/asset": "^8.0",
+        "symfony/cache": "^8.0",
+        "symfony/console": "^8.0",
+        "symfony/dependency-injection": "^8.0",
+        "symfony/dotenv": "^8.0",
+        "symfony/expression-language": "^8.0",
+        "symfony/flex": "^2.2",
+        "symfony/framework-bundle": "^8.0",
+        "symfony/http-client": "^8.0",
+        "symfony/http-foundation": "^8.0",
+        "symfony/http-kernel": "^8.0",
+        "symfony/monolog-bundle": "^4.0",
+        "symfony/property-access": "^8.0",
+        "symfony/property-info": "^8.0",
+        "symfony/routing": "^8.0",
+        "symfony/runtime": "^8.0",
+        "symfony/security-bundle": "^8.0",
+        "symfony/security-core": "^8.0",
+        "symfony/security-http": "^8.0",
+        "symfony/serializer": "^8.0",
+        "symfony/twig-bridge": "^8.0",
+        "symfony/twig-bundle": "^8.0",
+        "symfony/validator": "^8.0",
+        "symfony/yaml": "^8.0",
+        "twig/extra-bundle": "^3.0",
+        "twig/twig": "^3.0"
+    },
+    "require-dev": {
+        "ext-mongodb": "*",
+        "dg/bypass-finals": "^1.5",
+        "mockery/mockery": "^1.6",
+        "overtrue/phplint": "^9",
+        "phpmd/phpmd": "3.x-dev",
+        "phpunit/phpunit": "^13.0",
+        "rector/rector": "^2.4",
+        "squizlabs/php_codesniffer": "^4.0",
+        "symfony/browser-kit": "^8.0",
+        "symfony/css-selector": "^8.0",
+        "symfony/debug-bundle": "^8.0",
+        "symfony/dom-crawler": "^8.0",
+        "symfony/maker-bundle": "^1.44",
+        "symfony/phpunit-bridge": "^8.0",
+        "symfony/stopwatch": "^8.0",
+        "symfony/var-dumper": "^8.0",
+        "symfony/web-profiler-bundle": "^8.0"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": {
+            "*": "dist"
+        },
+        "sort-packages": true,
+        "allow-plugins": {
+            "composer/package-versions-deprecated": true,
+            "symfony/flex": true,
+            "symfony/runtime": true
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "App\\Tests\\": "tests/"
+        }
+    },
+    "replace": {
+        "paragonie/random_compat": "2.*",
+        "symfony/polyfill-ctype": "*",
+        "symfony/polyfill-iconv": "*",
+        "symfony/polyfill-intl-grapheme": "*",
+        "symfony/polyfill-intl-normalizer": "*",
+        "symfony/polyfill-mbstring": "*",
+        "symfony/polyfill-php82": "*",
+        "symfony/polyfill-php81": "*",
+        "symfony/polyfill-php80": "*",
+        "symfony/polyfill-php72": "*"
+    },
+    "scripts": {
+        "auto-scripts": {
+            "cache:clear": "symfony-cmd",
+            "assets:install %PUBLIC_DIR%": "symfony-cmd"
+        },
+        "post-install-cmd": [
+            "@auto-scripts"
+        ],
+        "post-update-cmd": [
+            "@auto-scripts"
+        ],
+        "run-tests": "composer run-phpcs && composer run-phpunit && composer run-phpmd && composer run-phplint",
+        "run-phpcs": "vendor/bin/phpcs",
+        "run-phpmd": "vendor/bin/phpmd analyze src/ --format=text --ruleset=phpmd-src.xml --exclude=src/Migrations/ && vendor/bin/phpmd analyze tests/ --format=text --ruleset=phpmd-tests.xml",
+        "run-phplint": "vendor/bin/phplint",
+        "run-phpunit": "vendor/bin/phpunit",
+        "run-coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-filter src/ --coverage-html coverage"
+    },
+    "conflict": {
+        "symfony/symfony": "*"
+    },
+    "extra": {
+        "symfony": {
+            "allow-contrib": false,
+            "require": "^8.0",
+            "docker": false
+        }
+    }
+}
