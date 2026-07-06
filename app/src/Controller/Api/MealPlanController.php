@@ -31,7 +31,11 @@ class MealPlanController extends AbstractController
 
     #[Route('/plan/current', name: 'api_plan_current', methods: ['GET'])]
     #[OA\Get(summary: 'Get or create the current week plan')]
-    #[OA\Response(response: 200, description: 'Week plan', content: new OA\JsonContent(ref: '#/components/schemas/WeekPlan'))]
+    #[OA\Response(
+        response: 200,
+        description: 'Week plan',
+        content: new OA\JsonContent(ref: '#/components/schemas/WeekPlan')
+    )]
     public function current(): JsonResponse
     {
         $weekStartDate = WeekPlanRepository::currentWeekStartDate();
@@ -45,10 +49,19 @@ class MealPlanController extends AbstractController
         return $this->json($this->formatPlan($plan));
     }
 
-    #[Route('/plan/{weekStartDate}', name: 'api_plan_get', methods: ['GET'], requirements: ['weekStartDate' => '\d{4}-\d{2}-\d{2}'])]
+    #[Route(
+        '/plan/{weekStartDate}',
+        name: 'api_plan_get',
+        methods: ['GET'],
+        requirements: ['weekStartDate' => '\d{4}-\d{2}-\d{2}']
+    )]
     #[OA\Get(summary: 'Get a week plan by start date (YYYY-MM-DD)')]
     #[OA\Parameter(name: 'weekStartDate', in: 'path', schema: new OA\Schema(type: 'string', example: '2026-06-30'))]
-    #[OA\Response(response: 200, description: 'Week plan', content: new OA\JsonContent(ref: '#/components/schemas/WeekPlan'))]
+    #[OA\Response(
+        response: 200,
+        description: 'Week plan',
+        content: new OA\JsonContent(ref: '#/components/schemas/WeekPlan')
+    )]
     #[OA\Response(response: 404, description: 'Not found')]
     public function get(string $weekStartDate): JsonResponse
     {
@@ -61,7 +74,12 @@ class MealPlanController extends AbstractController
         return $this->json($this->formatPlan($plan));
     }
 
-    #[Route('/plan/{weekStartDate}/{day}', name: 'api_plan_put_day', methods: ['PUT'], requirements: ['weekStartDate' => '\d{4}-\d{2}-\d{2}'])]
+    #[Route(
+        '/plan/{weekStartDate}/{day}',
+        name: 'api_plan_put_day',
+        methods: ['PUT'],
+        requirements: ['weekStartDate' => '\d{4}-\d{2}-\d{2}']
+    )]
     #[OA\Put(
         summary: 'Assign a meal to a day',
         requestBody: new OA\RequestBody(
@@ -82,7 +100,11 @@ class MealPlanController extends AbstractController
     )]
     #[OA\Parameter(name: 'weekStartDate', in: 'path', schema: new OA\Schema(type: 'string', example: '2026-06-30'))]
     #[OA\Parameter(name: 'day', in: 'path', schema: new OA\Schema(type: 'string', enum: WeekPlan::DAYS))]
-    #[OA\Response(response: 200, description: 'Updated week plan', content: new OA\JsonContent(ref: '#/components/schemas/WeekPlan'))]
+    #[OA\Response(
+        response: 200,
+        description: 'Updated week plan',
+        content: new OA\JsonContent(ref: '#/components/schemas/WeekPlan')
+    )]
     #[OA\Response(response: 400, description: 'Invalid day or missing mainRecipeId')]
     #[OA\Response(response: 422, description: 'Recipe not found in cookbook')]
     public function putDay(string $weekStartDate, string $day, Request $request): JsonResponse
@@ -117,11 +139,20 @@ class MealPlanController extends AbstractController
         return $this->json($this->formatPlan($plan));
     }
 
-    #[Route('/plan/{weekStartDate}/{day}', name: 'api_plan_delete_day', methods: ['DELETE'], requirements: ['weekStartDate' => '\d{4}-\d{2}-\d{2}'])]
+    #[Route(
+        '/plan/{weekStartDate}/{day}',
+        name: 'api_plan_delete_day',
+        methods: ['DELETE'],
+        requirements: ['weekStartDate' => '\d{4}-\d{2}-\d{2}']
+    )]
     #[OA\Delete(summary: 'Clear a day from the week plan')]
     #[OA\Parameter(name: 'weekStartDate', in: 'path', schema: new OA\Schema(type: 'string', example: '2026-06-30'))]
     #[OA\Parameter(name: 'day', in: 'path', schema: new OA\Schema(type: 'string', enum: WeekPlan::DAYS))]
-    #[OA\Response(response: 200, description: 'Updated week plan', content: new OA\JsonContent(ref: '#/components/schemas/WeekPlan'))]
+    #[OA\Response(
+        response: 200,
+        description: 'Updated week plan',
+        content: new OA\JsonContent(ref: '#/components/schemas/WeekPlan')
+    )]
     #[OA\Response(response: 400, description: 'Invalid day')]
     #[OA\Response(response: 404, description: 'Week plan not found')]
     public function deleteDay(string $weekStartDate, string $day): JsonResponse

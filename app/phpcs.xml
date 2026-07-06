@@ -13,6 +13,7 @@
     <file>tests/</file>
 
     <exclude-pattern>config/bootstrap.php</exclude-pattern>
+    <exclude-pattern>config/reference.php</exclude-pattern>
 
     <rule ref="PSR12" />
 
