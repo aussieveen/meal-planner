@@ -3,6 +3,70 @@ nelmio_api_doc:
         info:
             title: Meal Planner
             version: 1.0.0
+        components:
+            schemas:
+                RecipeRef:
+                    type: object
+                    properties:
+                        recipeId:
+                            type: integer
+                            example: 42
+                        name:
+                            type: string
+                            example: 'Spaghetti Bolognese'
+                        image:
+                            type: string
+                            nullable: true
+                            example: 'https://example.com/img.jpg'
+                DayPlan:
+                    type: object
+                    nullable: true
+                    properties:
+                        main:
+                            nullable: true
+                            allOf:
+                                - $ref: '#/components/schemas/RecipeRef'
+                        sides:
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/RecipeRef'
+                WeekPlan:
+                    type: object
+                    properties:
+                        weekStartDate:
+                            type: string
+                            example: '2026-06-30'
+                        days:
+                            type: object
+                            properties:
+                                monday:
+                                    nullable: true
+                                    allOf:
+                                        - $ref: '#/components/schemas/DayPlan'
+                                tuesday:
+                                    nullable: true
+                                    allOf:
+                                        - $ref: '#/components/schemas/DayPlan'
+                                wednesday:
+                                    nullable: true
+                                    allOf:
+                                        - $ref: '#/components/schemas/DayPlan'
+                                thursday:
+                                    nullable: true
+                                    allOf:
+                                        - $ref: '#/components/schemas/DayPlan'
+                                friday:
+                                    nullable: true
+                                    allOf:
+                                        - $ref: '#/components/schemas/DayPlan'
+                                saturday:
+                                    nullable: true
+                                    allOf:
+                                        - $ref: '#/components/schemas/DayPlan'
+                                sunday:
+                                    nullable: true
+                                    allOf:
+                                        - $ref: '#/components/schemas/DayPlan'
     areas:
         default:
             path_patterns:
