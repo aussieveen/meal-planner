@@ -9,6 +9,8 @@ services:
     environment:
       OPCACHE_VALIDATE_TIMESTAMPS: 1
       ENV: dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./app:/var/www/html:rw,cached
   nginx:
