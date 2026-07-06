@@ -1,19 +1,11 @@
-FROM php:8.5-fpm as build
+FROM php:8.5-fpm AS build
 
 ENV OPCACHE_VALIDATE_TIMESTAMPS=0
 
-ARG MONGODB_VERSION=2.2.1
-
-RUN apt update \
-    && apt install -y zlib1g-dev g++ git libicu-dev zip libzip-dev zip libcurl4-openssl-dev pkg-config libssl-dev nginx \
-    && docker-php-ext-install intl opcache \
-    && pecl install apcu \
-    && docker-php-ext-enable apcu \
-    && docker-php-ext-configure zip \
-    && docker-php-ext-install zip \
-    && pecl install mongodb-${MONGODB_VERSION} \
-    && docker-php-ext-enable mongodb \
-    && pecl clear-cache;
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN chmod +x /usr/local/bin/install-php-extensions \
+    && apt update && apt install -y nginx \
+    && install-php-extensions intl opcache apcu zip mongodb
 
 RUN ln -s ${PHP_INI_DIR}/php.ini-production ${PHP_INI_DIR}/php.ini \
     && sed -i -e "s/^ *memory_limit.*/memory_limit = 512M/g"  ${PHP_INI_DIR}/php.ini
