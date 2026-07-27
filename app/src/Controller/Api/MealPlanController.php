@@ -29,6 +29,34 @@ class MealPlanController extends AbstractController
     ) {
     }
 
+    #[Route('/plan/recipe-ids', name: 'api_plan_recipe_ids', methods: ['GET'])]
+    #[OA\Get(summary: 'Get all recipe IDs from a date until the last planned meal')]
+    #[OA\Parameter(name: 'from', in: 'query', schema: new OA\Schema(type: 'string', example: '2026-07-26'))]
+    #[OA\Response(response: 200, description: 'Flat list of recipe IDs in plan order')]
+    public function recipeIds(Request $request): JsonResponse
+    {
+        $from  = $request->query->get('from', date('Y-m-d'));
+        $plans = $this->repository->findFromDate($from);
+
+        $ids = [];
+        foreach ($plans as $plan) {
+            $weekStart = new \DateTimeImmutable($plan->getWeekStartDate());
+            foreach (WeekPlan::DAYS as $i => $day) {
+                $date    = $weekStart->modify("+{$i} days")->format('Y-m-d');
+                $dayPlan = $plan->getDay($day);
+                if ($date < $from || $dayPlan === null) {
+                    continue;
+                }
+                $ids[] = $dayPlan->getMain()->getRecipeId();
+                foreach ($dayPlan->getSides()->toArray() as $side) {
+                    $ids[] = $side->getRecipeId();
+                }
+            }
+        }
+
+        return $this->json(['recipeIds' => $ids]);
+    }
+
     #[Route('/plan/current', name: 'api_plan_current', methods: ['GET'])]
     #[OA\Get(summary: 'Get or create the current week plan')]
     #[OA\Response(

@@ -25,12 +25,30 @@ class WeekPlanRepository extends ServiceDocumentRepository
         return $this->findByWeekStartDate($weekStartDate) ?? new WeekPlan($weekStartDate);
     }
 
+    /** All plans whose week starts on or after the Monday containing $fromDate, sorted ascending */
+    public function findFromDate(string $fromDate): array
+    {
+        $monday = self::weekStartDateFor($fromDate);
+
+        return $this->createQueryBuilder()
+            ->field('weekStartDate')->gte($monday)
+            ->sort('weekStartDate', 'asc')
+            ->getQuery()
+            ->execute()
+            ->toArray();
+    }
+
     /** Compute the ISO date string (Y-m-d) for the Monday of the current week */
     public static function currentWeekStartDate(): string
     {
-        $today = new \DateTimeImmutable();
-        $dow   = (int) $today->format('N'); // 1=Mon … 7=Sun
+        return self::weekStartDateFor((new \DateTimeImmutable())->format('Y-m-d'));
+    }
 
-        return $today->modify(sprintf('-%d days', $dow - 1))->format('Y-m-d');
+    public static function weekStartDateFor(string $date): string
+    {
+        $d   = new \DateTimeImmutable($date);
+        $dow = (int) $d->format('N'); // 1=Mon … 7=Sun
+
+        return $d->modify(sprintf('-%d days', $dow - 1))->format('Y-m-d');
     }
 }
