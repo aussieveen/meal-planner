@@ -21,6 +21,10 @@ class DayPlan
     #[Groups(['plan:read'])]
     private Collection $sides;
 
+    #[ODM\Field(type: 'bool')]
+    #[Groups(['plan:read'])]
+    private bool $shopped = false;
+
     public function __construct()
     {
         $this->sides = new ArrayCollection();
@@ -51,4 +55,7 @@ class DayPlan
 
         return $this;
     }
+
+    public function getShopped(): bool { return $this->shopped; }
+    public function setShopped(bool $shopped): static { $this->shopped = $shopped; return $this; }
 }

@@ -30,7 +30,7 @@ class MealPlanController extends AbstractController
     }
 
     #[Route('/plan/recipe-ids', name: 'api_plan_recipe_ids', methods: ['GET'])]
-    #[OA\Get(summary: 'Get all recipe IDs from a date until the last planned meal')]
+    #[OA\Get(summary: 'Get all recipe IDs from a date until the last planned meal (excludes shopped days)')]
     #[OA\Parameter(name: 'from', in: 'query', schema: new OA\Schema(type: 'string', example: '2026-07-26'))]
     #[OA\Response(response: 200, description: 'Flat list of recipe IDs in plan order')]
     public function recipeIds(Request $request): JsonResponse
@@ -44,7 +44,7 @@ class MealPlanController extends AbstractController
             foreach (WeekPlan::DAYS as $i => $day) {
                 $date    = $weekStart->modify("+{$i} days")->format('Y-m-d');
                 $dayPlan = $plan->getDay($day);
-                if ($date < $from || $dayPlan === null) {
+                if ($date < $from || $dayPlan === null || $dayPlan->getShopped()) {
                     continue;
                 }
                 $ids[] = $dayPlan->getMain()->getRecipeId();
@@ -57,8 +57,32 @@ class MealPlanController extends AbstractController
         return $this->json(['recipeIds' => $ids]);
     }
 
-    #[Route('/plan/current', name: 'api_plan_current', methods: ['GET'])]
-    #[OA\Get(summary: 'Get or create the current week plan')]
+    #[Route('/plan/shopped', name: 'api_plan_mark_shopped', methods: ['PATCH'])]
+    #[OA\Patch(summary: 'Mark all days from a date as shopped (excluded from future shopping lists)')]
+    #[OA\Parameter(name: 'from', in: 'query', required: true, schema: new OA\Schema(type: 'string', example: '2026-07-26'))]
+    #[OA\Response(response: 204, description: 'Marked as shopped')]
+    public function markShopped(Request $request): JsonResponse
+    {
+        $from  = $request->query->get('from', date('Y-m-d'));
+        $plans = $this->repository->findFromDate($from);
+
+        foreach ($plans as $plan) {
+            $weekStart = new \DateTimeImmutable($plan->getWeekStartDate());
+            foreach (WeekPlan::DAYS as $i => $day) {
+                $date    = $weekStart->modify("+{$i} days")->format('Y-m-d');
+                $dayPlan = $plan->getDay($day);
+                if ($date >= $from && $dayPlan !== null) {
+                    $dayPlan->setShopped(true);
+                }
+            }
+        }
+
+        $this->dm->flush();
+
+        return $this->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    #[Route('/plan/current', name: 'api_plan_current', methods: ['GET'])]    #[OA\Get(summary: 'Get or create the current week plan')]
     #[OA\Response(
         response: 200,
         description: 'Week plan',
@@ -207,8 +231,9 @@ class MealPlanController extends AbstractController
         foreach (WeekPlan::DAYS as $day) {
             $dayPlan    = $plan->getDay($day);
             $days[$day] = $dayPlan === null ? null : [
-                'main'  => $this->formatRef($dayPlan->getMain()),
-                'sides' => array_map($this->formatRef(...), $dayPlan->getSides()->toArray()),
+                'main'    => $this->formatRef($dayPlan->getMain()),
+                'sides'   => array_map($this->formatRef(...), $dayPlan->getSides()->toArray()),
+                'shopped' => $dayPlan->getShopped(),
             ];
         }
 
