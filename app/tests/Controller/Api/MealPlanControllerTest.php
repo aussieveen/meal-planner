@@ -41,6 +41,49 @@ class MealPlanControllerTest extends TestCase
         $this->unit->setContainer($container);
     }
 
+    public function testRecipeIdsReturnsEmptyWhenNoPlans(): void
+    {
+        $this->repository->expects('findFromDate')->with('2026-07-27')->andReturn([]);
+
+        $request  = Request::create('/', 'GET', ['from' => '2026-07-27']);
+        $response = $this->unit->recipeIds($request);
+
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $this->assertSame(['recipeIds' => []], json_decode($response->getContent(), true));
+    }
+
+    public function testRecipeIdsFiltersOutDaysBeforeFromDate(): void
+    {
+        // Week starts Monday 2026-07-27; from=saturday 2026-08-01 → skip mon-fri
+        $plan = new WeekPlan('2026-07-27');
+        $plan->setDay('monday', (new DayPlan())->setMain(new RecipeRef(1, 'Mon', null)));
+        $plan->setDay('saturday', (new DayPlan())->setMain(new RecipeRef(10, 'Sat', null)));
+
+        $this->repository->expects('findFromDate')->with('2026-08-01')->andReturn([$plan]);
+
+        $request  = Request::create('/', 'GET', ['from' => '2026-08-01']);
+        $response = $this->unit->recipeIds($request);
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertSame([10], $data['recipeIds']);
+    }
+
+    public function testRecipeIdsIncludesSides(): void
+    {
+        $plan = new WeekPlan('2026-07-27');
+        $plan->setDay('monday', (new DayPlan())
+            ->setMain(new RecipeRef(42, 'Main', null))
+            ->setSides([new RecipeRef(15, 'Side', null)]));
+
+        $this->repository->expects('findFromDate')->with('2026-07-27')->andReturn([$plan]);
+
+        $request  = Request::create('/', 'GET', ['from' => '2026-07-27']);
+        $response = $this->unit->recipeIds($request);
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertSame([42, 15], $data['recipeIds']);
+    }
+
     public function testCurrentCreatesAndReturnsPlanWhenNotFound(): void
     {
         $plan = new WeekPlan('2026-06-30');

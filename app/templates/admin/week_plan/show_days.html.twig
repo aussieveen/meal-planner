@@ -1,0 +1,24 @@
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Day</th>
+            <th>Main</th>
+            <th>Sides</th>
+            <th>Shopped</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for day, plan in object.days %}
+        <tr>
+            <td>{{ day | capitalize }}</td>
+            {% if plan %}
+                <td>{{ plan.main ? plan.main.name : '—' }}</td>
+                <td>{{ plan.sides is not empty ? plan.sides | map(s => s.name) | join(', ') : '—' }}</td>
+                <td>{{ plan.shopped ? '✓' : '✗' }}</td>
+            {% else %}
+                <td colspan="3"><em>No meal planned</em></td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

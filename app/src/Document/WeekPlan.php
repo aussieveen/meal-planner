@@ -78,6 +78,21 @@ class WeekPlan
         return $this;
     }
 
+    /** @return array<string, DayPlan|null> */
+    public function getDays(): array
+    {
+        return array_combine(self::DAYS, array_map(fn(string $d) => $this->$d, self::DAYS));
+    }
+
+    public function getShoppedSummary(): string
+    {
+        $days     = $this->getDays();
+        $assigned = count(array_filter($days));
+        $shopped  = count(array_filter($days, fn(?DayPlan $d) => $d?->getShopped()));
+
+        return "{$shopped} / {$assigned} shopped";
+    }
+
     public function __toString(): string
     {
         return 'Week of ' . $this->weekStartDate;

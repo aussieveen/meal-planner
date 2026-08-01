@@ -20,8 +20,10 @@ class WeekPlanAdmin extends AbstractAdmin
     protected function configureListFields(ListMapper $list): void
     {
         $list
-            ->addIdentifier('id')
-            ->add('weekStartDate');
+            ->addIdentifier('weekStartDate')
+            ->add('shoppedSummary', null, [
+                'label' => 'Shopped',
+            ]);
     }
 
     protected function configureDatagridFilters(DatagridMapper $filter): void
@@ -32,8 +34,11 @@ class WeekPlanAdmin extends AbstractAdmin
     protected function configureShowFields(ShowMapper $show): void
     {
         $show
-            ->add('id')
-            ->add('weekStartDate');
+            ->add('weekStartDate')
+            ->add('days', null, [
+                'label'    => 'Meals',
+                'template' => 'admin/week_plan/show_days.html.twig',
+            ]);
     }
 
     protected function configureFormFields(FormMapper $form): void
