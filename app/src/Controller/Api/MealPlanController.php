@@ -47,9 +47,14 @@ class MealPlanController extends AbstractController
                 if ($date < $from || $dayPlan === null || $dayPlan->getShopped()) {
                     continue;
                 }
-                $ids[] = $dayPlan->getMain()->getRecipeId();
+                $mainRef = $dayPlan->getMain();
+                if ($mainRef !== null && $mainRef->getRecipeId() !== null) {
+                    $ids[] = $mainRef->getRecipeId();
+                }
                 foreach ($dayPlan->getSides()->toArray() as $side) {
-                    $ids[] = $side->getRecipeId();
+                    if ($side->getRecipeId() !== null) {
+                        $ids[] = $side->getRecipeId();
+                    }
                 }
             }
         }
@@ -137,9 +142,9 @@ class MealPlanController extends AbstractController
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['mainRecipeId'],
                 properties: [
-                    new OA\Property(property: 'mainRecipeId', type: 'integer', example: 42),
+                    new OA\Property(property: 'mainRecipeId', type: 'integer', nullable: true, example: 42, description: 'Cookbook recipe ID. Provide this OR freeformName, not both.'),
+                    new OA\Property(property: 'freeformName', type: 'string', nullable: true, example: 'Fish and chips from the chippy', description: 'Free-text meal name. Provide this OR mainRecipeId, not both.'),
                     new OA\Property(
                         property: 'sideRecipeIds',
                         type: 'array',
@@ -167,12 +172,24 @@ class MealPlanController extends AbstractController
 
         $body = json_decode($request->getContent(), true) ?? [];
 
-        if (!isset($body['mainRecipeId'])) {
-            return $this->json(['error' => 'mainRecipeId is required'], Response::HTTP_BAD_REQUEST);
+        $hasCookbook = isset($body['mainRecipeId']) && $body['mainRecipeId'] !== null;
+        $hasFreeform = isset($body['freeformName']) && trim((string) $body['freeformName']) !== '';
+
+        if (!$hasCookbook && !$hasFreeform) {
+            return $this->json(['error' => 'Either mainRecipeId or freeformName is required'], Response::HTTP_BAD_REQUEST);
+        }
+
+        if ($hasCookbook && $hasFreeform) {
+            return $this->json(['error' => 'Provide either mainRecipeId or freeformName, not both'], Response::HTTP_BAD_REQUEST);
         }
 
         try {
-            $main  = $this->cookbookService->getRecipeRef((int) $body['mainRecipeId']);
+            if ($hasCookbook) {
+                $main = $this->cookbookService->getRecipeRef((int) $body['mainRecipeId']);
+            } else {
+                $main = new RecipeRef(null, trim((string) $body['freeformName']));
+            }
+
             $sides = array_map(
                 fn(int $id) => $this->cookbookService->getRecipeRef($id),
                 array_map('intval', $body['sideRecipeIds'] ?? [])
@@ -246,6 +263,11 @@ class MealPlanController extends AbstractController
             return null;
         }
 
-        return ['recipeId' => $ref->getRecipeId(), 'name' => $ref->getName(), 'image' => $ref->getImage()];
+        return [
+            'recipeId' => $ref->getRecipeId(),
+            'name'     => $ref->getName(),
+            'image'    => $ref->getImage(),
+            'freeform' => $ref->getRecipeId() === null,
+        ];
     }
 }
