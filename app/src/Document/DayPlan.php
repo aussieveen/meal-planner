@@ -56,6 +56,14 @@ class DayPlan
         return $this;
     }
 
-    public function getShopped(): bool { return $this->shopped; }
-    public function setShopped(bool $shopped): static { $this->shopped = $shopped; return $this; }
+    public function getShopped(): bool
+    {
+        return $this->shopped;
+    }
+
+    public function setShopped(bool $shopped): static
+    {
+        $this->shopped = $shopped;
+        return $this;
+    }
 }
