@@ -10,9 +10,9 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ODM\EmbeddedDocument]
 class RecipeRef
 {
-    #[ODM\Field(type: 'int')]
+    #[ODM\Field(type: 'int', nullable: true)]
     #[Groups(['plan:read'])]
-    private int $recipeId;
+    private ?int $recipeId;
 
     #[ODM\Field(type: 'string')]
     #[Groups(['plan:read'])]
@@ -22,14 +22,14 @@ class RecipeRef
     #[Groups(['plan:read'])]
     private ?string $image = null;
 
-    public function __construct(int $recipeId, string $name, ?string $image = null)
+    public function __construct(?int $recipeId, string $name, ?string $image = null)
     {
         $this->recipeId = $recipeId;
         $this->name     = $name;
         $this->image    = $image;
     }
 
-    public function getRecipeId(): int
+    public function getRecipeId(): ?int
     {
         return $this->recipeId;
     }
