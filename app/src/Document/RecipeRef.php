@@ -12,11 +12,11 @@ class RecipeRef
 {
     #[ODM\Field(type: 'int', nullable: true)]
     #[Groups(['plan:read'])]
-    private ?int $recipeId;
+    private ?int $recipeId = null;
 
     #[ODM\Field(type: 'string')]
     #[Groups(['plan:read'])]
-    private string $name;
+    private string $name = '';
 
     #[ODM\Field(type: 'string', nullable: true)]
     #[Groups(['plan:read'])]
