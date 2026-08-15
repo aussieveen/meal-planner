@@ -47,9 +47,19 @@ class MealPlanController extends AbstractController
                 if ($date < $from || $dayPlan === null || $dayPlan->getShopped()) {
                     continue;
                 }
-                $ids[] = $dayPlan->getMain()->getRecipeId();
+                $mainRef = $dayPlan->getMain();
+                if ($mainRef !== null && $mainRef->getRecipeId() !== null) {
+                    $ids[] = $mainRef->getRecipeId();
+                }
                 foreach ($dayPlan->getSides()->toArray() as $side) {
-                    $ids[] = $side->getRecipeId();
+                    if ($side->getRecipeId() !== null) {
+                        $ids[] = $side->getRecipeId();
+                    }
+                }
+                foreach ([$dayPlan->getBaby(), $dayPlan->getBaking()] as $miniRef) {
+                    if ($miniRef !== null && $miniRef->getRecipeId() !== null) {
+                        $ids[] = $miniRef->getRecipeId();
+                    }
                 }
             }
         }
@@ -182,7 +192,7 @@ class MealPlanController extends AbstractController
         }
 
         $plan    = $this->repository->findOrCreateForDate($weekStartDate);
-        $dayPlan = (new DayPlan())->setMain($main)->setSides($sides);
+        $dayPlan = ($plan->getDay($day) ?? new DayPlan())->setMain($main)->setSides($sides);
         $plan->setDay($day, $dayPlan);
 
         $this->dm->persist($plan);
@@ -225,6 +235,95 @@ class MealPlanController extends AbstractController
         return $this->json($this->formatPlan($plan));
     }
 
+    #[Route(
+        '/plan/{weekStartDate}/{day}/{track}',
+        name: 'api_plan_put_mini',
+        methods: ['PUT'],
+        requirements: ['weekStartDate' => '\d{4}-\d{2}-\d{2}', 'track' => 'baby|baking']
+    )]
+    #[OA\Put(
+        summary: 'Assign a recipe to a mini-track (baby or baking) for a given day',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'recipeId', type: 'integer', example: 42),
+                ]
+            )
+        )
+    )]
+    #[OA\Parameter(name: 'weekStartDate', in: 'path', schema: new OA\Schema(type: 'string', example: '2026-06-30'))]
+    #[OA\Parameter(name: 'day', in: 'path', schema: new OA\Schema(type: 'string', enum: WeekPlan::DAYS))]
+    #[OA\Parameter(name: 'track', in: 'path', schema: new OA\Schema(type: 'string', enum: ['baby', 'baking']))]
+    #[OA\Response(response: 200, description: 'Updated week plan')]
+    #[OA\Response(response: 400, description: 'Invalid day or missing recipeId')]
+    #[OA\Response(response: 422, description: 'Recipe not found in cookbook')]
+    public function putMiniTrack(string $weekStartDate, string $day, string $track, Request $request): JsonResponse
+    {
+        if (!in_array($day, WeekPlan::DAYS, strict: true)) {
+            return $this->json(['error' => 'Invalid day: ' . $day], Response::HTTP_BAD_REQUEST);
+        }
+
+        $body     = json_decode($request->getContent(), true) ?? [];
+        $recipeId = isset($body['recipeId']) ? (int) $body['recipeId'] : null;
+
+        if ($recipeId === null) {
+            return $this->json(['error' => 'recipeId is required'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $ref = $this->cookbookService->getRecipeRef($recipeId);
+        } catch (RuntimeException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $plan    = $this->repository->findOrCreateForDate($weekStartDate);
+        $dayPlan = $plan->getDay($day) ?? new DayPlan();
+        $setter  = 'set' . ucfirst($track);
+        $dayPlan->$setter($ref);
+        $plan->setDay($day, $dayPlan);
+
+        $this->dm->persist($plan);
+        $this->dm->flush();
+
+        return $this->json($this->formatPlan($plan));
+    }
+
+    #[Route(
+        '/plan/{weekStartDate}/{day}/{track}',
+        name: 'api_plan_delete_mini',
+        methods: ['DELETE'],
+        requirements: ['weekStartDate' => '\d{4}-\d{2}-\d{2}', 'track' => 'baby|baking']
+    )]
+    #[OA\Delete(summary: 'Clear a mini-track (baby or baking) for a given day')]
+    #[OA\Parameter(name: 'weekStartDate', in: 'path', schema: new OA\Schema(type: 'string', example: '2026-06-30'))]
+    #[OA\Parameter(name: 'day', in: 'path', schema: new OA\Schema(type: 'string', enum: WeekPlan::DAYS))]
+    #[OA\Parameter(name: 'track', in: 'path', schema: new OA\Schema(type: 'string', enum: ['baby', 'baking']))]
+    #[OA\Response(response: 200, description: 'Updated week plan')]
+    #[OA\Response(response: 400, description: 'Invalid day')]
+    #[OA\Response(response: 404, description: 'Week plan not found')]
+    public function deleteMiniTrack(string $weekStartDate, string $day, string $track): JsonResponse
+    {
+        if (!in_array($day, WeekPlan::DAYS, strict: true)) {
+            return $this->json(['error' => 'Invalid day: ' . $day], Response::HTTP_BAD_REQUEST);
+        }
+
+        $plan = $this->repository->findByWeekStartDate($weekStartDate);
+
+        if ($plan === null) {
+            return $this->json(['error' => 'Week plan not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $dayPlan = $plan->getDay($day);
+        if ($dayPlan !== null) {
+            $setter = 'set' . ucfirst($track);
+            $dayPlan->$setter(null);
+            $this->dm->flush();
+        }
+
+        return $this->json($this->formatPlan($plan));
+    }
+
     private function formatPlan(WeekPlan $plan): array
     {
         $days = [];
@@ -234,6 +333,8 @@ class MealPlanController extends AbstractController
                 'main'    => $this->formatRef($dayPlan->getMain()),
                 'sides'   => array_map($this->formatRef(...), $dayPlan->getSides()->toArray()),
                 'shopped' => $dayPlan->getShopped(),
+                'baby'    => $this->formatRef($dayPlan->getBaby()),
+                'baking'  => $this->formatRef($dayPlan->getBaking()),
             ];
         }
 

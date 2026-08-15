@@ -21,6 +21,14 @@ class DayPlan
     #[Groups(['plan:read'])]
     private Collection $sides;
 
+    #[ODM\EmbedOne(targetDocument: RecipeRef::class, nullable: true)]
+    #[Groups(['plan:read'])]
+    private ?RecipeRef $baby = null;
+
+    #[ODM\EmbedOne(targetDocument: RecipeRef::class, nullable: true)]
+    #[Groups(['plan:read'])]
+    private ?RecipeRef $baking = null;
+
     #[ODM\Field(type: 'bool')]
     #[Groups(['plan:read'])]
     private bool $shopped = false;
@@ -56,6 +64,39 @@ class DayPlan
         return $this;
     }
 
-    public function getShopped(): bool { return $this->shopped; }
-    public function setShopped(bool $shopped): static { $this->shopped = $shopped; return $this; }
+    public function getShopped(): bool
+    {
+        return $this->shopped;
+    }
+
+    public function setShopped(bool $shopped): static
+    {
+        $this->shopped = $shopped;
+
+        return $this;
+    }
+
+    public function getBaby(): ?RecipeRef
+    {
+        return $this->baby;
+    }
+
+    public function setBaby(?RecipeRef $baby): static
+    {
+        $this->baby = $baby;
+
+        return $this;
+    }
+
+    public function getBaking(): ?RecipeRef
+    {
+        return $this->baking;
+    }
+
+    public function setBaking(?RecipeRef $baking): static
+    {
+        $this->baking = $baking;
+
+        return $this;
+    }
 }

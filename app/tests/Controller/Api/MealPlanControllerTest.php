@@ -84,6 +84,38 @@ class MealPlanControllerTest extends TestCase
         $this->assertSame([42, 15], $data['recipeIds']);
     }
 
+    public function testRecipeIdsIncludesMiniTracks(): void
+    {
+        $plan = new WeekPlan('2026-07-27');
+        $plan->setDay('monday', (new DayPlan())
+            ->setMain(new RecipeRef(42, 'Bolognese', null))
+            ->setBaby(new RecipeRef(7, 'Veggie Mash', null))
+            ->setBaking(new RecipeRef(12, 'Banana Muffins', null)));
+
+        $this->repository->expects('findFromDate')->with('2026-07-27')->andReturn([$plan]);
+
+        $request  = Request::create('/', 'GET', ['from' => '2026-07-27']);
+        $response = $this->unit->recipeIds($request);
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertSame([42, 7, 12], $data['recipeIds']);
+    }
+
+    public function testRecipeIdsHandlesDayWithOnlyMiniTrack(): void
+    {
+        // A day where only a baby meal was assigned (no main) — should not crash
+        $plan = new WeekPlan('2026-07-27');
+        $plan->setDay('monday', (new DayPlan())->setBaby(new RecipeRef(7, 'Veggie Mash', null)));
+
+        $this->repository->expects('findFromDate')->with('2026-07-27')->andReturn([$plan]);
+
+        $request  = Request::create('/', 'GET', ['from' => '2026-07-27']);
+        $response = $this->unit->recipeIds($request);
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertSame([7], $data['recipeIds']);
+    }
+
     public function testCurrentCreatesAndReturnsPlanWhenNotFound(): void
     {
         $plan = new WeekPlan('2026-06-30');
@@ -200,6 +232,31 @@ class MealPlanControllerTest extends TestCase
         $this->assertSame(15, $data['days']['monday']['sides'][0]['recipeId']);
     }
 
+    public function testPutDayPreservesMiniTracksWhenAssigningMainMeal(): void
+    {
+        $existing = (new DayPlan())
+            ->setBaby(new RecipeRef(7, 'Veggie Mash', null))
+            ->setBaking(new RecipeRef(12, 'Banana Muffins', null));
+
+        $plan = $this->existingPlan('2026-06-30');
+        $plan->setDay('monday', $existing);
+
+        $main = new RecipeRef(42, 'Bolognese', null);
+        $this->cookbookService->expects('getRecipeRef')->with(42)->andReturn($main);
+        $this->repository->expects('findOrCreateForDate')->with('2026-06-30')->andReturn($plan);
+        $this->dm->expects('persist')->with($plan);
+        $this->dm->expects('flush');
+
+        $request  = Request::create('/', 'PUT', content: json_encode(['mainRecipeId' => 42, 'sideRecipeIds' => []]));
+        $response = $this->unit->putDay('2026-06-30', 'monday', $request);
+
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertSame(42, $data['days']['monday']['main']['recipeId']);
+        $this->assertSame(7, $data['days']['monday']['baby']['recipeId']);
+        $this->assertSame(12, $data['days']['monday']['baking']['recipeId']);
+    }
+
     public function testDeleteDayReturns400ForInvalidDay(): void
     {
         $response = $this->unit->deleteDay('2026-06-30', 'blursday');
@@ -246,5 +303,142 @@ class MealPlanControllerTest extends TestCase
         $prop->setValue($plan, 'some-object-id');
 
         return $plan;
+    }
+
+    // -------------------------------------------------------------------------
+    // Mini-track routes (baby / baking)
+    // -------------------------------------------------------------------------
+
+    public function testPutMiniTrackReturns400ForInvalidDay(): void
+    {
+        $response = $this->unit->putMiniTrack('2026-06-30', 'blursday', 'baby', new Request());
+
+        $this->assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+    }
+
+    public function testPutMiniTrackReturns400WhenRecipeIdMissing(): void
+    {
+        $request = Request::create('/', 'PUT', content: json_encode([]));
+
+        $response = $this->unit->putMiniTrack('2026-06-30', 'monday', 'baby', $request);
+
+        $this->assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+    }
+
+    public function testPutMiniTrackReturns422WhenCookbookRecipeNotFound(): void
+    {
+        $this->cookbookService->expects('getRecipeRef')
+            ->with(999)
+            ->andThrows(new RuntimeException('Recipe 999 not found in cookbook'));
+
+        $request = Request::create('/', 'PUT', content: json_encode(['recipeId' => 999]));
+
+        $response = $this->unit->putMiniTrack('2026-06-30', 'monday', 'baby', $request);
+
+        $this->assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $response->getStatusCode());
+    }
+
+    public function testPutMiniTrackAssignsBabyAndReturnsPlan(): void
+    {
+        $ref = new RecipeRef(7, 'Veggie Mash', null);
+
+        $this->cookbookService->expects('getRecipeRef')->with(7)->andReturn($ref);
+
+        $plan = $this->existingPlan('2026-06-30');
+        $this->repository->expects('findOrCreateForDate')
+            ->with('2026-06-30')
+            ->andReturn($plan);
+
+        $this->dm->expects('persist')->with($plan);
+        $this->dm->expects('flush');
+
+        $request  = Request::create('/', 'PUT', content: json_encode(['recipeId' => 7]));
+        $response = $this->unit->putMiniTrack('2026-06-30', 'monday', 'baby', $request);
+
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertSame(7, $data['days']['monday']['baby']['recipeId']);
+        $this->assertSame('Veggie Mash', $data['days']['monday']['baby']['name']);
+    }
+
+    public function testPutMiniTrackAssignsBakingAndReturnsPlan(): void
+    {
+        $ref = new RecipeRef(12, 'Banana Muffins', null);
+
+        $this->cookbookService->expects('getRecipeRef')->with(12)->andReturn($ref);
+
+        $plan = $this->existingPlan('2026-06-30');
+        $this->repository->expects('findOrCreateForDate')
+            ->with('2026-06-30')
+            ->andReturn($plan);
+
+        $this->dm->expects('persist')->with($plan);
+        $this->dm->expects('flush');
+
+        $request  = Request::create('/', 'PUT', content: json_encode(['recipeId' => 12]));
+        $response = $this->unit->putMiniTrack('2026-06-30', 'tuesday', 'baking', $request);
+
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertSame(12, $data['days']['tuesday']['baking']['recipeId']);
+    }
+
+    public function testPutMiniTrackPreservesExistingMainMeal(): void
+    {
+        $existing = (new DayPlan())->setMain(new RecipeRef(42, 'Bolognese', null));
+        $plan     = $this->existingPlan('2026-06-30');
+        $plan->setDay('monday', $existing);
+
+        $ref = new RecipeRef(7, 'Veggie Mash', null);
+        $this->cookbookService->expects('getRecipeRef')->with(7)->andReturn($ref);
+        $this->repository->expects('findOrCreateForDate')->with('2026-06-30')->andReturn($plan);
+        $this->dm->expects('persist')->with($plan);
+        $this->dm->expects('flush');
+
+        $request  = Request::create('/', 'PUT', content: json_encode(['recipeId' => 7]));
+        $this->unit->putMiniTrack('2026-06-30', 'monday', 'baby', $request);
+
+        // Original main must still be intact
+        $this->assertSame(42, $plan->getDay('monday')->getMain()->getRecipeId());
+        $this->assertSame(7, $plan->getDay('monday')->getBaby()->getRecipeId());
+    }
+
+    public function testDeleteMiniTrackReturns400ForInvalidDay(): void
+    {
+        $response = $this->unit->deleteMiniTrack('2026-06-30', 'blursday', 'baby');
+
+        $this->assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+    }
+
+    public function testDeleteMiniTrackReturns404WhenPlanNotFound(): void
+    {
+        $this->repository->expects('findByWeekStartDate')
+            ->with('2026-06-30')
+            ->andReturnNull();
+
+        $response = $this->unit->deleteMiniTrack('2026-06-30', 'monday', 'baking');
+
+        $this->assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
+    }
+
+    public function testDeleteMiniTrackClearsBabyAndReturnsPlan(): void
+    {
+        $plan = $this->existingPlan('2026-06-30');
+        $plan->setDay('monday', (new DayPlan())
+            ->setMain(new RecipeRef(42, 'Bolognese', null))
+            ->setBaby(new RecipeRef(7, 'Veggie Mash', null)));
+
+        $this->repository->expects('findByWeekStartDate')
+            ->with('2026-06-30')
+            ->andReturn($plan);
+
+        $this->dm->expects('flush');
+
+        $response = $this->unit->deleteMiniTrack('2026-06-30', 'monday', 'baby');
+
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertNull($data['days']['monday']['baby']);
+        $this->assertSame(42, $data['days']['monday']['main']['recipeId']);
     }
 }
