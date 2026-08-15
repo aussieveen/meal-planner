@@ -69,7 +69,12 @@ class MealPlanController extends AbstractController
 
     #[Route('/plan/shopped', name: 'api_plan_mark_shopped', methods: ['PATCH'])]
     #[OA\Patch(summary: 'Mark all days from a date as shopped (excluded from future shopping lists)')]
-    #[OA\Parameter(name: 'from', in: 'query', required: true, schema: new OA\Schema(type: 'string', example: '2026-07-26'))]
+    #[OA\Parameter(
+        name: 'from',
+        in: 'query',
+        required: true,
+        schema: new OA\Schema(type: 'string', example: '2026-07-26')
+    )]
     #[OA\Response(response: 204, description: 'Marked as shopped')]
     public function markShopped(Request $request): JsonResponse
     {
@@ -92,7 +97,8 @@ class MealPlanController extends AbstractController
         return $this->json(null, Response::HTTP_NO_CONTENT);
     }
 
-    #[Route('/plan/current', name: 'api_plan_current', methods: ['GET'])]    #[OA\Get(summary: 'Get or create the current week plan')]
+    #[Route('/plan/current', name: 'api_plan_current', methods: ['GET'])]
+    #[OA\Get(summary: 'Get or create the current week plan')]
     #[OA\Response(
         response: 200,
         description: 'Week plan',
@@ -147,9 +153,21 @@ class MealPlanController extends AbstractController
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['mainRecipeId'],
                 properties: [
-                    new OA\Property(property: 'mainRecipeId', type: 'integer', example: 42),
+                    new OA\Property(
+                        property: 'mainRecipeId',
+                        type: 'integer',
+                        nullable: true,
+                        example: 42,
+                        description: 'Cookbook recipe ID. Provide this OR freeformName, not both.'
+                    ),
+                    new OA\Property(
+                        property: 'freeformName',
+                        type: 'string',
+                        nullable: true,
+                        example: 'Fish and chips from the chippy',
+                        description: 'Free-text meal name. Provide this OR mainRecipeId, not both.'
+                    ),
                     new OA\Property(
                         property: 'sideRecipeIds',
                         type: 'array',
@@ -177,12 +195,30 @@ class MealPlanController extends AbstractController
 
         $body = json_decode($request->getContent(), true) ?? [];
 
-        if (!isset($body['mainRecipeId'])) {
-            return $this->json(['error' => 'mainRecipeId is required'], Response::HTTP_BAD_REQUEST);
+        $hasCookbook = isset($body['mainRecipeId']) && $body['mainRecipeId'] !== null;
+        $hasFreeform = isset($body['freeformName']) && trim((string) $body['freeformName']) !== '';
+
+        if (!$hasCookbook && !$hasFreeform) {
+            return $this->json(
+                ['error' => 'Either mainRecipeId or freeformName is required'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        if ($hasCookbook && $hasFreeform) {
+            return $this->json(
+                ['error' => 'Provide either mainRecipeId or freeformName, not both'],
+                Response::HTTP_BAD_REQUEST
+            );
         }
 
         try {
-            $main  = $this->cookbookService->getRecipeRef((int) $body['mainRecipeId']);
+            if ($hasCookbook) {
+                $main = $this->cookbookService->getRecipeRef((int) $body['mainRecipeId']);
+            } else {
+                $main = new RecipeRef(null, trim((string) $body['freeformName']));
+            }
+
             $sides = array_map(
                 fn(int $id) => $this->cookbookService->getRecipeRef($id),
                 array_map('intval', $body['sideRecipeIds'] ?? [])
@@ -347,6 +383,11 @@ class MealPlanController extends AbstractController
             return null;
         }
 
-        return ['recipeId' => $ref->getRecipeId(), 'name' => $ref->getName(), 'image' => $ref->getImage()];
+        return [
+            'recipeId' => $ref->getRecipeId(),
+            'name'     => $ref->getName(),
+            'image'    => $ref->getImage(),
+            'freeform' => $ref->getRecipeId() === null,
+        ];
     }
 }
